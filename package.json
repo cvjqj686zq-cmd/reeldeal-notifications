@@ -1,0 +1,12 @@
+{
+  "name": "reeldeal-ebay-notifications",
+  "version": "1.0.0",
+  "description": "eBay Marketplace Account Deletion notification handler",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  }
+}
