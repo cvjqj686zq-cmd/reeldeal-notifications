@@ -1,10 +1,3 @@
-/**
- * eBay Marketplace Account Deletion Notification Handler
- * =======================================================
- * eBay requires this endpoint before issuing Production keys.
- * Deploy to Render.com — see README for instructions.
- */
-
 const express = require('express');
 const crypto  = require('crypto');
 const app     = express();
@@ -14,27 +7,33 @@ app.use(express.json());
 const VERIFICATION_TOKEN = process.env.EBAY_VERIFICATION_TOKEN || 'reeldeal-verify-token-change-me';
 const PORT = process.env.PORT || 3000;
 
-// eBay sends a GET with ?challenge_code=xxx to verify you own the endpoint.
+// eBay challenge verification — GET /ebay/notifications?challenge_code=xxx
 app.get('/ebay/notifications', (req, res) => {
   const challengeCode = req.query.challenge_code;
   if (!challengeCode) return res.status(400).json({ error: 'Missing challenge_code' });
 
-  const endpointUrl = `${req.protocol}://${req.get('host')}/ebay/notifications`;
+  // Hash order MUST be: challengeCode + verificationToken + endpointUrl
+  const endpointUrl = `https://${req.get('host')}/ebay/notifications`;
   const hash = crypto
     .createHash('sha256')
     .update(challengeCode + VERIFICATION_TOKEN + endpointUrl)
     .digest('hex');
 
-  console.log(`[${new Date().toISOString()}] eBay challenge received → responded with hash`);
-  res.json({ challengeResponse: hash });
+  console.log(`[${new Date().toISOString()}] Challenge received`);
+  console.log(`  challenge_code: ${challengeCode}`);
+  console.log(`  endpoint used in hash: ${endpointUrl}`);
+  console.log(`  response hash: ${hash}`);
+
+  // Must return exact JSON with Content-Type application/json
+  res.setHeader('Content-Type', 'application/json');
+  res.status(200).send(JSON.stringify({ challengeResponse: hash }));
 });
 
-// eBay POSTs account deletion events here. Respond 200 to acknowledge.
+// eBay account deletion notifications — POST /ebay/notifications
 app.post('/ebay/notifications', (req, res) => {
-  const event  = req.body;
-  const topic  = event?.metadata?.topic || 'unknown';
-  const userId = event?.notification?.data?.userId || 'n/a';
-  console.log(`[${new Date().toISOString()}] eBay notification — topic: ${topic}, userId: ${userId}`);
+  const topic  = req.body?.metadata?.topic || 'unknown';
+  const userId = req.body?.notification?.data?.userId || 'n/a';
+  console.log(`[${new Date().toISOString()}] Notification received — topic: ${topic}, userId: ${userId}`);
   res.sendStatus(200);
 });
 
@@ -43,6 +42,4 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', service: 'ReelDeal eBay Notification Handler', time: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
